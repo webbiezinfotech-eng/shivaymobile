@@ -9,6 +9,21 @@ const ROWS_PER_PAGE = 24;
 const COL_DATE = 42;
 const COL_ITEM = 118;
 const COL_AMOUNT = 500;
+const DETAILED_LINE_HEIGHT = 11;
+const DETAILED_PAGE_BODY_FIRST = 580;
+const DETAILED_PAGE_BODY_NEXT = 640;
+const DETAILED_FONT = 8;
+const DETAILED_ITEM_WRAP = 30;
+const DETAILED_COL = {
+  date: 40,
+  item: 76,
+  source: 181,
+  customer: 233,
+  amount: 281,
+  cost: 325,
+  profit: 369,
+  status: 413,
+};
 const PDF_FOOTER_LINE = '(c) Copyright 2026 webbiezinfotech.in All Rights Reserved';
 const PDF_FOOTER_Y = 24;
 const PDF_FOOTER_SIZE = 8;
@@ -27,6 +42,61 @@ function truncateText(text, maxLength) {
   const safe = pdfSafeText(text);
   if (safe.length <= maxLength) return safe;
   return `${safe.slice(0, maxLength - 3)}...`;
+}
+
+function wrapText(text, maxCharsPerLine) {
+  const safe = pdfSafeText(text).trim();
+  if (!safe) return [''];
+  if (safe.length <= maxCharsPerLine) return [safe];
+
+  const lines = [];
+  let remaining = safe;
+
+  while (remaining.length > maxCharsPerLine) {
+    let breakAt = remaining.lastIndexOf(' ', maxCharsPerLine);
+    if (breakAt <= 0) breakAt = maxCharsPerLine;
+    lines.push(remaining.slice(0, breakAt).trim());
+    remaining = remaining.slice(breakAt).trim();
+  }
+
+  if (remaining) lines.push(remaining);
+  return lines;
+}
+
+function getDetailedEntryHeight(entry) {
+  const itemLines = wrapText(entry.item_name, DETAILED_ITEM_WRAP);
+  return Math.max(itemLines.length, 1) * DETAILED_LINE_HEIGHT + 4;
+}
+
+function paginateDetailedEntries(entries) {
+  if (!entries.length) return [[]];
+
+  const pages = [];
+  let currentPage = [];
+  let usedHeight = 0;
+
+  entries.forEach((entry) => {
+    const entryHeight = getDetailedEntryHeight(entry);
+    const pageLimit = pages.length === 0 ? DETAILED_PAGE_BODY_FIRST : DETAILED_PAGE_BODY_NEXT;
+
+    if (currentPage.length > 0 && usedHeight + entryHeight > pageLimit) {
+      pages.push(currentPage);
+      currentPage = [];
+      usedHeight = 0;
+    }
+
+    currentPage.push(entry);
+    usedHeight += entryHeight;
+  });
+
+  if (currentPage.length) pages.push(currentPage);
+  return pages;
+}
+
+function drawWrappedColumn(commands, x, startY, lines, lineHeight, size, bold = false) {
+  lines.forEach((line, index) => {
+    drawText(commands, x, startY - index * lineHeight, line, size, bold && index === 0);
+  });
 }
 
 function formatPdfAmount(amount) {
@@ -50,6 +120,11 @@ function drawLine(commands, x1, y1, x2, y2) {
 
 export function isSourceReport(report) {
   return report?.search_type === 'source';
+}
+
+/** Name search = simple statement PDF; date/month/range only = full detail PDF */
+export function isStatementReport(report) {
+  return Boolean(report?.search && String(report.search).trim());
 }
 
 function getEntryPdfAmount(entry, report) {
@@ -85,11 +160,10 @@ function buildReportFilename(report) {
   return `shivay-mobile-${datePart}${searchPart}.pdf`;
 }
 
-function buildPageContent({ entries, pageIndex, totalPages, report, showHeader, showTotal, showFooter, totalAmount }) {
-  const commands = [];
+function drawReportHeader(commands, report, pageIndex, totalPages) {
   let y = PAGE_HEIGHT - 48;
 
-  if (showHeader) {
+  if (pageIndex === 0) {
     drawText(commands, MARGIN_LEFT, y, 'SHIVAY MOBILE', 20, true);
     y -= 22;
     drawText(commands, MARGIN_LEFT, y, 'Sales  |  Service  |  Accessories', 10);
@@ -116,9 +190,20 @@ function buildPageContent({ entries, pageIndex, totalPages, report, showHeader, 
   } else {
     drawText(commands, MARGIN_LEFT, y, 'SHIVAY MOBILE', 12, true);
     y -= 18;
-    drawText(commands, MARGIN_LEFT, y, `Statement (Page ${pageIndex + 1} of ${totalPages})`, 10);
+    drawText(commands, MARGIN_LEFT, y, `Report (Page ${pageIndex + 1} of ${totalPages})`, 10);
     y -= 20;
   }
+
+  return y;
+}
+
+function formatPdfStatus(status) {
+  return status === 'settled' ? 'Sett' : 'Pend';
+}
+
+function buildStatementPageContent({ entries, pageIndex, totalPages, report, showTotal, showFooter, totalAmount }) {
+  const commands = [];
+  let y = drawReportHeader(commands, report, pageIndex, totalPages);
 
   drawLine(commands, MARGIN_LEFT, y, MARGIN_RIGHT, y);
   y -= 18;
@@ -144,6 +229,76 @@ function buildPageContent({ entries, pageIndex, totalPages, report, showHeader, 
     y -= 8;
     drawText(commands, COL_ITEM, y, getTotalLabel(report), 11, true);
     drawText(commands, COL_AMOUNT, y, formatPdfAmount(totalAmount), 11, true);
+  }
+
+  if (showFooter) {
+    drawCenteredText(commands, PDF_FOOTER_Y, PDF_FOOTER_LINE, PDF_FOOTER_SIZE);
+  }
+
+  return commands.join('\n');
+}
+
+function buildDetailedPageContent({
+  entries,
+  pageIndex,
+  totalPages,
+  report,
+  showTotals,
+  showFooter,
+  totals,
+}) {
+  const commands = [];
+  let y = drawReportHeader(commands, report, pageIndex, totalPages);
+
+  drawLine(commands, MARGIN_LEFT, y, MARGIN_RIGHT, y);
+  y -= 16;
+
+  drawText(commands, DETAILED_COL.date, y, 'Date', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.item, y, 'Item', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.source, y, 'Source', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.customer, y, 'Customer', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.amount, y, 'Amount', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.cost, y, 'Cost', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.profit, y, 'Profit', DETAILED_FONT, true);
+  drawText(commands, DETAILED_COL.status, y, 'St.', DETAILED_FONT, true);
+  y -= 6;
+  drawLine(commands, MARGIN_LEFT, y, MARGIN_RIGHT, y);
+  y -= 12;
+
+  entries.forEach((entry) => {
+    const itemLines = wrapText(entry.item_name, DETAILED_ITEM_WRAP);
+    const rowLines = Math.max(itemLines.length, 1);
+
+    drawText(commands, DETAILED_COL.date, y, formatShortDate(entry.entry_date), DETAILED_FONT);
+    drawWrappedColumn(commands, DETAILED_COL.item, y, itemLines, DETAILED_LINE_HEIGHT, DETAILED_FONT);
+    
+    drawText(commands, DETAILED_COL.source, y, truncateText(entry.source_shop, 9), DETAILED_FONT);
+    drawText(commands, DETAILED_COL.customer, y, truncateText(entry.customer_name, 10), DETAILED_FONT);
+    drawText(commands, DETAILED_COL.amount, y, formatPdfAmount(entry.customer_amount), DETAILED_FONT);
+    drawText(commands, DETAILED_COL.cost, y, formatPdfAmount(entry.purchase_cost), DETAILED_FONT);
+    drawText(commands, DETAILED_COL.profit, y, formatPdfAmount(entry.profit), DETAILED_FONT);
+    drawText(commands, DETAILED_COL.status, y, formatPdfStatus(entry.settlement_status), DETAILED_FONT);
+
+    y -= rowLines * DETAILED_LINE_HEIGHT + 3;
+  });
+
+  y -= 4;
+  drawLine(commands, MARGIN_LEFT, y + 8, MARGIN_RIGHT, y + 8);
+
+  if (showTotals) {
+    y -= 10;
+    drawText(commands, DETAILED_COL.item, y, 'Grand Total', DETAILED_FONT, true);
+    drawText(commands, DETAILED_COL.amount, y, formatPdfAmount(totals.totalAmount), DETAILED_FONT, true);
+    drawText(commands, DETAILED_COL.cost, y, formatPdfAmount(totals.totalCost), DETAILED_FONT, true);
+    drawText(commands, DETAILED_COL.profit, y, formatPdfAmount(totals.totalProfit), DETAILED_FONT, true);
+    y -= 14;
+    drawText(
+      commands,
+      DETAILED_COL.item,
+      y,
+      `Entries: ${totals.totalEntries}  |  Settled: ${formatPdfAmount(totals.settledAmount)}  |  Pending: ${formatPdfAmount(totals.pendingAmount)}`,
+      DETAILED_FONT
+    );
   }
 
   if (showFooter) {
@@ -204,12 +359,27 @@ function buildPdfDocument(pageContents) {
   return pdf;
 }
 
-function buildCustomerReportPdf(report) {
+function sumEntries(entries, pick) {
+  return entries.reduce((sum, entry) => sum + Number(pick(entry) || 0), 0);
+}
+
+function buildDetailedTotals(entries) {
+  const settledEntries = entries.filter((entry) => entry.settlement_status === 'settled');
+  const pendingEntries = entries.filter((entry) => entry.settlement_status === 'pending');
+
+  return {
+    totalEntries: entries.length,
+    totalCost: sumEntries(entries, (entry) => entry.purchase_cost),
+    totalAmount: sumEntries(entries, (entry) => entry.customer_amount),
+    totalProfit: sumEntries(entries, (entry) => entry.profit),
+    settledAmount: sumEntries(settledEntries, (entry) => entry.customer_amount),
+    pendingAmount: sumEntries(pendingEntries, (entry) => entry.customer_amount),
+  };
+}
+
+function buildStatementReportPdf(report) {
   const allEntries = report.entries || [];
-  const totalAmount = allEntries.reduce(
-    (sum, entry) => sum + Number(getEntryPdfAmount(entry, report) || 0),
-    0
-  );
+  const totalAmount = sumEntries(allEntries, (entry) => getEntryPdfAmount(entry, report));
   const chunks = [];
 
   for (let i = 0; i < allEntries.length; i += ROWS_PER_PAGE) {
@@ -221,18 +391,42 @@ function buildCustomerReportPdf(report) {
   }
 
   const totalPages = chunks.length;
-  const pageContents = chunks.map((entries, pageIndex) =>
-    buildPageContent({
+  return chunks.map((entries, pageIndex) =>
+    buildStatementPageContent({
       entries,
       pageIndex,
       totalPages,
       report,
-      showHeader: pageIndex === 0,
       showTotal: pageIndex === totalPages - 1,
       showFooter: pageIndex === totalPages - 1,
       totalAmount,
     })
   );
+}
+
+function buildDetailedDateReportPdf(report) {
+  const allEntries = report.entries || [];
+  const totals = buildDetailedTotals(allEntries);
+  const chunks = paginateDetailedEntries(allEntries);
+
+  const totalPages = chunks.length;
+  return chunks.map((entries, pageIndex) =>
+    buildDetailedPageContent({
+      entries,
+      pageIndex,
+      totalPages,
+      report,
+      showTotals: pageIndex === totalPages - 1,
+      showFooter: pageIndex === totalPages - 1,
+      totals,
+    })
+  );
+}
+
+function buildCustomerReportPdf(report) {
+  const pageContents = isStatementReport(report)
+    ? buildStatementReportPdf(report)
+    : buildDetailedDateReportPdf(report);
 
   return buildPdfDocument(pageContents);
 }

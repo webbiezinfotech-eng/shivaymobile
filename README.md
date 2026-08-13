@@ -1,80 +1,179 @@
 # Shivay Mobile
 
-Digital notebook for **Shivay Mobile** to manage Sameer's repair/accessory work and settlement tracking with the shop owner.
+**Shivay Mobile** is a progressive web app (PWA) for managing daily sales, service, and accessories work at a mobile shop. It replaces the manual notebook used to track customer work, purchase costs, source vendors, profit, and payment settlements between staff and the shop owner.
 
-This is **not** an inventory system, ERP, POS, or accounting software. It replaces the manual notebook used to track work entries and whether Sameer has returned customer amounts to the owner.
+> **Live demo:** [shivaymob.webbiezinfotech.in](https://shivaymob.webbiezinfotech.in)
+
+This is **not** a full inventory system, ERP, POS, or accounting software. It is a focused digital notebook with role-based access, dashboards, and owner reports.
+
+---
+
+## What This App Does
+
+Every work entry records:
+
+| Field | Description |
+|-------|-------------|
+| Date | Entry date |
+| Item / Work | What was sold or repaired |
+| Customer / Party | Who the work was done for |
+| Customer Amount | Amount charged to the customer |
+| Purchase Cost | Cost paid to source shop (single value or item-wise breakdown) |
+| Source Shop | Where parts/material came from |
+| Profit | Auto-calculated: `customer_amount - purchase_cost` |
+| Settlement | Pending or Settled (settlement amount = **customer amount**, not profit) |
+
+---
 
 ## Features
 
-- **Sameer role**: Add entries, view dashboard and own entries (no edit, delete, or settle)
-- **Owner role**: View all entries, filter/search, mark pending as settled, dashboards, monthly reports
-- **Automatic profit**: `profit = customer_amount - purchase_cost`
-- **Settlement tracking**: Pending → Settled (settlement amount = customer amount)
-- **Settlement confirmation modal** before marking settled
-- **Mobile-first PWA** with bottom navigation
-- **No advance money system**
+### Sameer (Staff)
+
+- Login with role-based access
+- Dashboard with today’s summary
+- **Add Entry** — item, customer, amount, purchase cost (or cost breakdown), source shop
+- View own entries list and entry details
+- Search entries on dashboard
+- Mobile-friendly bottom navigation
+
+### Owner
+
+Everything Sameer can do, plus:
+
+- **Add Entry** — same form as Sameer
+- View **all entries** across the shop
+- **Edit** any entry
+- **Delete** entries (with confirmation)
+- **Settle** pending entries (with confirmation modal)
+- **Pending Settlements** page
+- **Reports** with filters:
+  - Date range or month/year
+  - Status (All / Pending / Settled)
+  - **Smart name search** — search customer, source shop, or item in one box (no manual filter needed)
+  - Auto-detects report type:
+    - Source shop name → shows **purchase cost** totals (profit hidden)
+    - Customer name → shows **customer amount** totals
+    - Item name → item-wise summary
+- **PDF export** — clean statement for customers/sources (no profit/cost columns in customer PDFs)
+- **Change password**
+- Dashboard with today + month stats and recent entries
+
+### App-Wide
+
+- **PWA** — install on phone like a native app (Android / iPhone)
+- **Stay logged in** — 30-day session until logout
+- **Auto-update PWA** — new version loads when app is reopened
+- **Refresh on resume** — data updates when tab/app becomes visible (no heavy background polling)
+- **Copyright footer** on all pages
+- Offline entry save blocked with clear message (internet required)
+
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React, Vite, Tailwind CSS, React Router, vite-plugin-pwa |
-| Backend | PHP 8+, PDO, session auth |
+| Frontend | React 18, Vite 5, Tailwind CSS, React Router |
+| PWA | vite-plugin-pwa, Workbox |
+| Backend | PHP 8+, PDO, session-based auth |
 | Database | MySQL (`shivay_mobile`) |
+| PDF | Custom zero-dependency PDF generator (no jspdf) |
 
-## Folder Structure
+---
+
+## Project Structure
 
 ```
-Shivay Mobile/
+ShivayMobile/
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   Layout, common, dashboard, entries, auth
-│   │   ├── pages/        Login, sameer/*, owner/*
-│   │   ├── routes/       AppRoutes, ProtectedRoute, RoleRoute
-│   │   ├── services/     api, auth, entry, dashboard
-│   │   ├── context/      AuthContext
-│   │   └── utils/        calculations, formatters, validation
-│   ├── public/icons/     PWA icons
-│   └── dist/             Production build output
+│   │   ├── components/       Layout, entries, dashboard, common
+│   │   ├── pages/
+│   │   │   ├── sameer/       Dashboard, Add Entry, My Entries, Details
+│   │   │   └── owner/        Dashboard, Entries, Pending, Reports, Edit, etc.
+│   │   ├── routes/           ProtectedRoute, RoleRoute
+│   │   ├── services/         api, auth, entry, dashboard
+│   │   ├── context/          AuthContext (session + localStorage cache)
+│   │   └── utils/            reportBuilder, reportPdf, validation, formatters
+│   ├── public/icons/         PWA icons
+│   └── dist/                 Production build (deploy this)
 ├── backend/
-│   ├── config/           database, session, config
-│   ├── middleware/       auth, role
-│   ├── auth/             login, logout, me
-│   ├── entries/          create, list, details, settle
-│   ├── dashboard/        sameer, owner
-│   ├── reports/          monthly
-│   └── helpers/          response, validation, security
+│   ├── config/               database, session, config, local.php
+│   ├── middleware/           auth, role
+│   ├── auth/                 login, logout, me, change_password
+│   ├── entries/              create, list, details, update, delete, settle
+│   ├── dashboard/            sameer, owner
+│   ├── reports/              monthly
+│   └── helpers/              response, validation, security, entry_formatter
 └── database/
     ├── schema.sql
     └── seed.sql
 ```
 
+---
+
+## Roles & Permissions
+
+| Action | Sameer | Owner |
+|--------|--------|-------|
+| Add entry | ✅ | ✅ |
+| View own entries | ✅ | ✅ |
+| View all entries | ❌ | ✅ |
+| Edit entry | ❌ | ✅ |
+| Delete entry | ❌ | ✅ |
+| Settle entry | ❌ | ✅ |
+| Dashboard (full) | ❌ | ✅ |
+| Reports & PDF | ❌ | ✅ |
+| Change password | ❌ | ✅ |
+
+---
+
+## Business Rules
+
+| Value | Rule |
+|-------|------|
+| Profit | `customer_amount - purchase_cost` |
+| Settlement amount | `customer_amount` (NOT profit, NOT purchase cost) |
+| Source report total | Sum of **purchase cost** only |
+| Customer report total | Sum of **customer amount** |
+| Customer PDF | Shows date, item, amount only (no profit/cost/status) |
+| Source PDF | Shows date, item, **purchase cost** |
+
+**Example:** Customer ₹1000, Purchase cost ₹600 → Profit ₹400, Settlement ₹1000
+
+---
+
 ## Database Setup
 
-1. Start MySQL in XAMPP.
+1. Start MySQL (XAMPP / hosting panel).
 
 2. Import schema and seed:
+
 ```bash
-/Applications/XAMPP/xamppfiles/bin/mysql -u root < database/schema.sql
-/Applications/XAMPP/xamppfiles/bin/mysql -u root < database/seed.sql
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/seed.sql
 ```
 
-Alternatively, run the PHP seeder (updates passwords safely):
+Or use the PHP seeder:
+
 ```bash
 php backend/setup/seed_users.php
 ```
 
-## PHP Setup
+---
 
-1. Ensure Apache and PHP 8+ are running in XAMPP.
+## Local Development Setup
 
-2. Copy backend config example:
+### 1. Backend (PHP)
+
 ```bash
 cp backend/config/local.example.php backend/config/local.php
 ```
 
-3. Edit `backend/config/local.php`:
+Edit `backend/config/local.php`:
+
 ```php
+<?php
 return [
     'DB_HOST' => '127.0.0.1',
     'DB_NAME' => 'shivay_mobile',
@@ -83,83 +182,55 @@ return [
 ];
 ```
 
-API base URL (XAMPP): `http://localhost/Shivay%20Mobile/backend/`
+Place project in XAMPP htdocs, e.g. `htdocs/ShivayMobile/`.
 
-## Frontend Setup
+API base: `http://localhost/ShivayMobile/backend/`
+
+### 2. Frontend (React)
 
 ```bash
 cd frontend
-cp .env.example .env.development
+cp .env.example .env.development   # if available
 npm install
 npm run dev
 ```
 
-Development: `http://localhost:5173` (proxies `/backend` to XAMPP)
+Dev server: `http://localhost:5173` (proxies `/backend` to XAMPP)
 
-## Environment Variables
+### Environment Variables
 
-### Frontend (`frontend/.env.development` or `.env.production`)
+**Frontend** (`.env.production`):
 
 ```env
 VITE_API_BASE_URL=/backend
 ```
 
-Production XAMPP example:
-```env
-VITE_API_BASE_URL=/Shivay%20Mobile/backend
-```
+**Backend** (`backend/config/local.php`):
 
-### Backend (`backend/config/local.php`)
+- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 
-- `DB_HOST`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`
+> Never commit `local.php` or production credentials to GitHub.
 
-Never commit `backend/config/local.php` with production credentials.
+---
 
-## Development Commands
-
-```bash
-cd frontend
-npm run dev      # Start dev server
-npm run build    # Production build
-npm run preview  # Preview production build
-```
-
-## PWA Testing
+## Build & Deploy
 
 ```bash
 cd frontend
 npm run build
-npm run preview
 ```
 
-Verify in Chrome DevTools:
-- **Application → Manifest** — valid manifest loads
-- **Application → Service Workers** — registered
-- **Lighthouse → PWA** — installability checks
-- **Add to Home Screen** — standalone mode works
+Upload to server:
 
-Offline entry creation is **not** supported. Show "Internet connection required to save entries."
+1. `frontend/dist/` → web root
+2. `backend/` → `/backend/` folder on same domain
+3. Configure `backend/config/local.php` with production DB
+4. Import `database/schema.sql` + create users
+5. Enable HTTPS (recommended for PWA + secure cookies)
 
-## Default Development Credentials
+**Production URL example:** `https://shivaymob.webbiezinfotech.in`
 
-| Role   | Username | Password   |
-|--------|----------|------------|
-| Owner  | owner    | owner123   |
-| Sameer | sameer   | sameer123  |
-
-**Change these before production.**
-
-## Production Deployment
-
-1. Import database schema and seed users.
-2. Configure `backend/config/local.php`.
-3. Set `frontend/.env.production` with correct `VITE_API_BASE_URL`.
-4. Build frontend: `npm run build`
-5. Serve `frontend/dist/` via Apache on same domain as backend.
-6. Enable HTTPS and ensure session cookies use `secure = true`.
+---
 
 ## API Endpoints
 
@@ -169,81 +240,101 @@ Offline entry creation is **not** supported. Show "Internet connection required 
 | POST | `/backend/auth/logout.php` | Authenticated |
 | GET | `/backend/auth/me.php` | Authenticated |
 | POST | `/backend/auth/change_password.php` | Owner |
-| POST | `/backend/entries/create.php` | Sameer |
+| POST | `/backend/entries/create.php` | Sameer, Owner |
 | GET | `/backend/entries/list.php` | Authenticated |
 | GET | `/backend/entries/details.php?id=` | Authenticated |
+| POST | `/backend/entries/update.php` | Owner |
+| POST | `/backend/entries/delete.php` | Owner |
 | POST | `/backend/entries/settle.php` | Owner |
 | GET | `/backend/dashboard/sameer.php` | Sameer |
 | GET | `/backend/dashboard/owner.php` | Owner |
-| GET | `/backend/reports/monthly.php?year=&month=` | Owner |
+| GET | `/backend/reports/monthly.php` | Owner |
 
-### List query parameters
+### List / Report query parameters
 
 - `from_date`, `to_date`
-- `search` (item, customer, source shop)
-- `status` (pending / settled)
+- `year`, `month`
+- `status` — `pending` / `settled`
+- `search` — customer, source shop, or item name
 - `page`, `limit`
 
-## Business Calculations
+---
 
-| Value | Formula |
-|-------|---------|
-| Profit | `customer_amount - purchase_cost` |
-| Settlement amount | `customer_amount` (NOT profit, NOT purchase cost) |
+## Default Development Credentials
 
-Example: Customer ₹90, Cost ₹20 → Profit ₹70, Settlement ₹90
+| Role | Username | Password |
+|------|----------|----------|
+| Owner | `owner` | `owner123` |
+| Sameer | `sameer` | `sameer123` |
 
-## Security Notes
+**Change these before production.**
 
-- PHP session authentication with HTTP-only cookies
-- Role authorization on every protected endpoint
-- Prepared statements for all SQL
+---
+
+## PWA Installation
+
+1. Open the app in Chrome (Android) or Safari (iPhone)
+2. **Add to Home Screen**
+3. App opens in standalone mode like a native app
+4. Updates apply automatically when a new build is deployed and the app is reopened
+
+---
+
+## Security
+
+- PHP session auth with HTTP-only cookies (30-day lifetime)
+- Role checks on every protected API
+- Prepared statements for all SQL queries
 - Passwords hashed with `password_hash()`
-- No credentials in frontend or localStorage
-- Sameer cannot access owner APIs (403)
-- Settlement requires owner confirmation click
+- Sameer blocked from owner-only APIs (403)
+- Settlement and delete require owner confirmation in UI
+- API routes use `NetworkOnly` in service worker (no stale cached API data)
 
-## Production Security Checklist
+---
 
-Before going live:
+## Reports & PDF — How Search Works
 
-- [ ] Change default passwords (`owner123`, `sameer123`)
-- [ ] Set `APP_DEBUG=false` in server environment
-- [ ] Enable HTTPS; session cookies will use `secure = true`
-- [ ] Configure `backend/config/local.php` with production DB credentials
-- [ ] Do not commit `local.php` or `.env.production`
-- [ ] Restrict database user permissions to `shivay_mobile` only
-- [ ] Verify Sameer receives 403 on owner APIs (run `bash backend/tests/api_audit.sh`)
+1. Type any name in the search box (customer, source, or item)
+2. App finds all matching records automatically
+3. Report type is auto-detected:
+   - **Source match** → Total Cost = purchase cost sum, profit hidden
+   - **Customer match** → Customer amount, settled/pending totals
+   - **Item match** → Item + source breakdown table
+4. **Download PDF** generates a clean statement:
+   - Customer reports → amounts only
+   - Source reports → purchase costs only
+   - Footer: `Copyright 2026 webbiezinfotech.in All Rights Reserved`
 
-## Testing & Audit
+---
 
-### Automated tests (requires MySQL)
+## Development Commands
 
 ```bash
-# Import database first
-mysql -u root < database/schema.sql
-mysql -u root < database/seed.sql
-
-# Run PHP audit (calculations, schema, aggregations)
-php backend/tests/audit.php
-
-# Run API security audit (requires Apache running)
-bash backend/tests/api_audit.sh
+cd frontend
+npm run dev       # Dev server
+npm run build     # Production build
+npm run preview   # Preview production build locally
 ```
 
-### Manual test checklist
+---
 
-- Owner and Sameer login/logout
-- Sameer creates entry; profit auto-calculated
-- Sameer cannot access `/owner` routes or settle API (403)
-- Owner sees entries, filters, searches, settles with confirmation
-- Settlement persists after browser refresh
-- Dashboard totals: pending = sum of customer_amount (pending), settled = sum of customer_amount (settled)
-- PWA: `npm run build` → manifest + service worker present
+## Testing Checklist
 
-## License
+- [ ] Owner and Sameer login / logout
+- [ ] Sameer adds entry; profit auto-calculated
+- [ ] Owner adds, edits, deletes, settles entries
+- [ ] Sameer cannot access owner routes (redirect / 403)
+- [ ] Reports: date filter, status filter, name search
+- [ ] Source search shows purchase cost (not customer amount)
+- [ ] Customer search shows customer amounts
+- [ ] PDF downloads with correct amounts and footer
+- [ ] PWA installs and stays logged in after reopen
+- [ ] Change default passwords before going live
 
-Private use for Shivay Mobile.
-# shivaymobile
-# shivaymobile
-# shivaymobile
+---
+
+## License & Credits
+
+© Copyright 2026 [webbiezinfotech.in](https://webbiezinfotech.in) — All Rights Reserved
+
+Private business application built for **Shivay Mobile**.
