@@ -1,0 +1,9 @@
+<?php
+// Upload as: public_html/Shivay Mobile/backend/config/local.php
+
+return [
+    'host' => 'localhost',
+    'dbname' => 'u723435472_shivaymobile',
+    'username' => 'u723435472_shivaymobile',
+    'password' => 'APNA_HOSTINGER_DB_PASSWORD_YAHAN',
+];

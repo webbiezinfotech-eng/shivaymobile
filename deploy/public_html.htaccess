@@ -1,0 +1,18 @@
+# Upload to: public_html/.htaccess
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Never send API calls to React index.html
+  RewriteCond %{REQUEST_URI} ^/backend/ [NC]
+  RewriteRule ^ - [L]
+
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+DirectoryIndex index.html

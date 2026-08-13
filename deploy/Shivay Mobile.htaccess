@@ -1,0 +1,17 @@
+# Upload as: public_html/Shivay Mobile/.htaccess
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /Shivay%20Mobile/
+
+  # PHP backend
+  RewriteRule ^backend/ - [L]
+
+  # Real files (assets, icons, sw.js, index.html)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # React routes: /login, /owner, /sameer
+  RewriteRule ^ index.html [L]
+</IfModule>
