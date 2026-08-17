@@ -63,8 +63,9 @@ export default function AppLayout({ title, children, navItems = [], bottomNavIte
 
 export const sameerBottomNav = [
   { to: '/sameer', label: 'Dashboard', icon: '🏠', end: true },
+  { to: '/sameer/pending', label: 'Pending', icon: '⏳' },
+  { to: '/sameer/add-entry', label: 'Add', icon: '➕' },
   { to: '/sameer/entries', label: 'Entries', icon: '📋' },
-  { to: '/sameer/add-entry', label: 'Add Entry', icon: '➕' },
 ];
 
 export const ownerBottomNav = [

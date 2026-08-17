@@ -2,11 +2,6 @@
 
 declare(strict_types=1);
 
+http_response_code(404);
 header('Content-Type: application/json; charset=utf-8');
-echo json_encode([
-    'success' => true,
-    'message' => 'Shivay Mobile API',
-    'data' => [
-        'version' => '1.0.0',
-    ],
-], JSON_UNESCAPED_UNICODE);
+echo json_encode(['success' => false, 'message' => 'Not found.'], JSON_UNESCAPED_UNICODE);

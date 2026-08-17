@@ -5,11 +5,12 @@ import { ownerNavItems } from '../../config/ownerNav';
 import StatCard from '../../components/dashboard/StatCard';
 import EntryTable from '../../components/entries/EntryTable';
 import SettlementConfirmModal from '../../components/entries/SettlementConfirmModal';
+import UndoSettleConfirmModal from '../../components/entries/UndoSettleConfirmModal';
 import DeleteConfirmModal from '../../components/entries/DeleteConfirmModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import AlertMessage from '../../components/common/AlertMessage';
 import { getOwnerDashboard } from '../../services/dashboardService';
-import { settleEntry, deleteEntry } from '../../services/entryService';
+import { settleEntry, undoSettleEntry, deleteEntry } from '../../services/entryService';
 import { filterEntries } from '../../utils/searchEntries';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
@@ -22,8 +23,10 @@ export default function OwnerDashboard() {
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
   const [confirmEntry, setConfirmEntry] = useState(null);
+  const [undoEntry, setUndoEntry] = useState(null);
   const [deleteEntryTarget, setDeleteEntryTarget] = useState(null);
   const [settling, setSettling] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const loadDashboard = useCallback(({ silent = false } = {}) => {
@@ -70,6 +73,24 @@ export default function OwnerDashboard() {
     }
   };
 
+  const handleConfirmUndo = async () => {
+    if (!undoEntry) return;
+    setUndoing(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await undoSettleEntry(undoEntry.id);
+      setSuccess('Settlement undone. Entry is pending again.');
+      setUndoEntry(null);
+      await loadDashboard();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Unable to connect to server.');
+    } finally {
+      setUndoing(false);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteEntryTarget) return;
     setDeleting(true);
@@ -97,33 +118,36 @@ export default function OwnerDashboard() {
       {success && <div className="mb-4"><AlertMessage type="success" message={success} /></div>}
       {error && <div className="mb-4"><AlertMessage message={error} /></div>}
       {!loading && data && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <StatCard label="Today's Entries" value={today.entry_count} />
-            <StatCard label="Today's Customer Amount" value={today.customer_amount} isCurrency />
+            <StatCard label="Today's Amount" value={today.customer_amount} isCurrency />
             <StatCard label="Today's Profit" value={today.profit} isProfit />
             <StatCard label="Pending Settlement" value={data.pending_settlement_total} isCurrency />
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link to="/owner/add-entry" className="btn-primary">
-              + Add New Entry
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+            <Link to="/owner/add-entry" className="btn-primary text-center">
+              + Add Entry
             </Link>
-            <Link to="/owner/pending" className="btn-secondary">
-              View Pending Settlements
+            <Link to="/owner/pending" className="btn-secondary text-center">
+              Pending
             </Link>
-            <Link to="/owner/entries" className="btn-secondary">
-              All Entries
+            <Link to="/owner/reports" className="btn-secondary text-center">
+              Reports
             </Link>
           </div>
 
           <section>
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Recent Entries</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Today&apos;s Entries</h2>
+                <p className="text-sm text-slate-500">Sirf aaj ki entries — purani dekhne ke liye Reports use karein</p>
+              </div>
               <input
                 type="search"
                 className="input-field sm:max-w-xs"
-                placeholder="Search item, customer, amount..."
+                placeholder="Search today..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -131,17 +155,18 @@ export default function OwnerDashboard() {
             <EntryTable
               entries={filteredEntries}
               showOwnerColumns
-              detailBasePath="/owner/entries"
               showOwnerActions
               onSettleClick={setConfirmEntry}
+              onUndoClick={setUndoEntry}
               onDeleteClick={setDeleteEntryTarget}
               settlingId={settling ? confirmEntry?.id : null}
+              undoingId={undoing ? undoEntry?.id : null}
               deletingId={deleting ? deleteEntryTarget?.id : null}
             />
           </section>
 
           {monthly && (
-            <section>
+            <section className="hidden rounded-2xl border border-slate-200 bg-white p-4 md:block">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-slate-900">Monthly Summary</h2>
                 <Link to="/owner/reports" className="text-sm font-semibold text-brand-700">
@@ -149,7 +174,7 @@ export default function OwnerDashboard() {
                 </Link>
               </div>
               <p className="mb-3 text-sm font-medium uppercase text-slate-500">{monthly.month_label}</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
                 <StatCard label="Total Entries" value={monthly.total_entries} />
                 <StatCard label="Customer Amount" value={monthly.total_customer_amount} isCurrency />
                 <StatCard label="Purchase Cost" value={monthly.total_purchase_cost} isCurrency />
@@ -167,6 +192,12 @@ export default function OwnerDashboard() {
         onConfirm={handleConfirmSettle}
         onCancel={() => setConfirmEntry(null)}
         loading={settling}
+      />
+      <UndoSettleConfirmModal
+        entry={undoEntry}
+        onConfirm={handleConfirmUndo}
+        onCancel={() => setUndoEntry(null)}
+        loading={undoing}
       />
       <DeleteConfirmModal
         entry={deleteEntryTarget}

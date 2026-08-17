@@ -66,14 +66,16 @@ try {
     );
     $totalPendingSettlement = (float) $totalPendingStmt->fetch()['pending_amount'];
 
-    $recentStmt = $pdo->query(
+    $recentStmt = $pdo->prepare(
         'SELECT e.*, u.name AS created_by_name, su.name AS settled_by_name
          FROM entries e
          JOIN users u ON u.id = e.created_by
          LEFT JOIN users su ON su.id = e.settled_by
-         ORDER BY e.entry_date DESC, e.id DESC
-         LIMIT 10'
+         WHERE e.entry_date = :today
+         ORDER BY e.id DESC
+         LIMIT 50'
     );
+    $recentStmt->execute(['today' => $today]);
     $recent = array_map(static function (array $row): array {
         return [
             'id' => (int) $row['id'],

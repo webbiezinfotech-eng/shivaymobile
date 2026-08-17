@@ -58,3 +58,32 @@ export function getTodayDateInputValue() {
   const local = new Date(now.getTime() - offset * 60 * 1000);
   return local.toISOString().split('T')[0];
 }
+
+export function getMonthStartDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}-01`;
+}
+
+export function getDefaultReportFilters() {
+  const today = getTodayDateInputValue();
+  const now = new Date();
+  return {
+    from_date: today,
+    to_date: today,
+    status: '',
+    search: '',
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  };
+}
+
+export function getDefaultAllEntriesFilters() {
+  const today = getTodayDateInputValue();
+  return {
+    date_from: today,
+    date_to: today,
+    search: '',
+    status: '',
+  };
+}

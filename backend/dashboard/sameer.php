@@ -49,11 +49,11 @@ try {
         'SELECT e.*, u.name AS created_by_name
          FROM entries e
          JOIN users u ON u.id = e.created_by
-         WHERE e.created_by = :user_id
-         ORDER BY e.entry_date DESC, e.id DESC
-         LIMIT 10'
+         WHERE e.created_by = :user_id AND e.entry_date = :today
+         ORDER BY e.id DESC
+         LIMIT 50'
     );
-    $recentStmt->execute(['user_id' => $user['id']]);
+    $recentStmt->execute(['user_id' => $user['id'], 'today' => $today]);
     $recent = array_map(static function (array $row): array {
         return [
             'id' => (int) $row['id'],

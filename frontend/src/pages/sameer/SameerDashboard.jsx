@@ -12,6 +12,7 @@ import { ApiError } from '../../services/api';
 const navItems = [
   { to: '/sameer', label: 'Dashboard', end: true },
   { to: '/sameer/add-entry', label: 'Add Entry' },
+  { to: '/sameer/pending', label: 'Pending' },
   { to: '/sameer/entries', label: 'My Entries' },
 ];
 
@@ -47,19 +48,25 @@ export default function SameerDashboard() {
       {loading && <LoadingSpinner />}
       {error && <AlertMessage message={error} />}
       {!loading && data && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatCard label="Today's Entries" value={data.today_entry_count} />
             <StatCard label="This Month" value={data.month_entry_count} />
             <StatCard label="Pending" value={data.pending_entry_count} />
           </div>
 
-          <Link to="/sameer/add-entry" className="btn-primary w-full sm:w-auto">
-            + Add New Entry
-          </Link>
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+            <Link to="/sameer/add-entry" className="btn-primary text-center">
+              + Add Entry
+            </Link>
+            <Link to="/sameer/pending" className="btn-secondary text-center">
+              Pending
+            </Link>
+          </div>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">My Recent Entries</h2>
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Today&apos;s Entries</h2>
+            <p className="mb-3 text-sm text-slate-500">Sirf aaj ki entries</p>
             <EntryTable entries={data.recent_entries} detailBasePath="/sameer/entries" />
           </section>
         </div>

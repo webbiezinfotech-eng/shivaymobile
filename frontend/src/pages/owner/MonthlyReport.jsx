@@ -4,29 +4,22 @@ import { ownerNavItems } from '../../config/ownerNav';
 import StatCard from '../../components/dashboard/StatCard';
 import EntryTable from '../../components/entries/EntryTable';
 import SettlementConfirmModal from '../../components/entries/SettlementConfirmModal';
+import UndoSettleConfirmModal from '../../components/entries/UndoSettleConfirmModal';
 import DeleteConfirmModal from '../../components/entries/DeleteConfirmModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import AlertMessage from '../../components/common/AlertMessage';
 import { fetchOwnerReport } from '../../utils/reportBuilder';
-import { settleEntry, deleteEntry } from '../../services/entryService';
+import { settleEntry, undoSettleEntry, deleteEntry } from '../../services/entryService';
 import { downloadReportPdfFile, buildReportItemSummary, getSourcePurchaseTotal, isSourceReport, getSearchPerspectiveLabel } from '../../utils/reportPdf';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, getDefaultReportFilters } from '../../utils/formatters';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { useDebouncedValue } from '../../utils/useDebouncedValue';
 import { ApiError } from '../../services/api';
 
 
-const emptyFilters = {
-  from_date: '',
-  to_date: '',
-  status: '',
-  search: '',
-  year: new Date().getFullYear(),
-  month: new Date().getMonth() + 1,
-};
 
 export default function MonthlyReport() {
-  const [filters, setFilters] = useState(emptyFilters);
+  const [filters, setFilters] = useState(() => getDefaultReportFilters());
   const debouncedSearch = useDebouncedValue(filters.search, 300);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,8 +27,10 @@ export default function MonthlyReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [confirmEntry, setConfirmEntry] = useState(null);
+  const [undoEntry, setUndoEntry] = useState(null);
   const [deleteEntryTarget, setDeleteEntryTarget] = useState(null);
   const [settling, setSettling] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const hasLoadedOnce = useRef(false);
@@ -133,7 +128,7 @@ export default function MonthlyReport() {
   };
 
   const handleClearFilters = () => {
-    setFilters(emptyFilters);
+    setFilters(getDefaultReportFilters());
   };
 
   const handleConfirmSettle = async () => {
@@ -151,6 +146,24 @@ export default function MonthlyReport() {
       setError(err instanceof ApiError ? err.message : 'Unable to connect to server.');
     } finally {
       setSettling(false);
+    }
+  };
+
+  const handleConfirmUndo = async () => {
+    if (!undoEntry) return;
+    setUndoing(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await undoSettleEntry(undoEntry.id);
+      setSuccess('Settlement undone.');
+      setUndoEntry(null);
+      await loadReport();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Unable to connect to server.');
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -346,11 +359,13 @@ export default function MonthlyReport() {
               <EntryTable
                 entries={report.entries}
                 showOwnerColumns
-                detailBasePath="/owner/entries"
                 showOwnerActions
+                compactLayout={false}
                 onSettleClick={setConfirmEntry}
+                onUndoClick={setUndoEntry}
                 onDeleteClick={setDeleteEntryTarget}
                 settlingId={settling ? confirmEntry?.id : null}
+                undoingId={undoing ? undoEntry?.id : null}
                 deletingId={deleting ? deleteEntryTarget?.id : null}
               />
             </section>
@@ -367,6 +382,12 @@ export default function MonthlyReport() {
         onConfirm={handleConfirmSettle}
         onCancel={() => setConfirmEntry(null)}
         loading={settling}
+      />
+      <UndoSettleConfirmModal
+        entry={undoEntry}
+        onConfirm={handleConfirmUndo}
+        onCancel={() => setUndoEntry(null)}
+        loading={undoing}
       />
       <DeleteConfirmModal
         entry={deleteEntryTarget}

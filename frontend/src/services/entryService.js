@@ -42,6 +42,14 @@ export async function settleEntry(entryId) {
   return payload.data;
 }
 
+export async function undoSettleEntry(entryId) {
+  const payload = await request('/entries/unsettle.php', {
+    method: 'POST',
+    body: { entry_id: entryId },
+  });
+  return payload.data;
+}
+
 export async function updateEntry(entryData) {
   const payload = await request('/entries/update.php', {
     method: 'POST',
@@ -55,5 +63,11 @@ export async function deleteEntry(entryId) {
     method: 'POST',
     body: { entry_id: entryId },
   });
+  return payload.data;
+}
+
+export async function getEntrySuggestions(query = '') {
+  const qs = query ? `?q=${encodeURIComponent(query)}` : '';
+  const payload = await request(`/entries/suggestions.php${qs}`);
   return payload.data;
 }

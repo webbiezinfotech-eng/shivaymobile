@@ -3,27 +3,32 @@ import { Link, useLocation } from 'react-router-dom';
 export default function EntryOwnerActions({
   entry,
   fromPath,
+  onView,
   onSettle,
+  onUndo,
   onDelete,
   settling = false,
+  undoing = false,
   deleting = false,
   compact = false,
 }) {
   const location = useLocation();
   const backPath = fromPath || location.pathname;
   const baseClass = compact
-    ? 'inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold'
+    ? 'inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold'
     : 'text-sm font-semibold';
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Link
-        to={`/owner/entries/${entry.id}`}
-        state={{ from: backPath }}
-        className={`${baseClass} ${compact ? 'bg-brand-50 text-brand-700' : 'text-brand-700'}`}
-      >
-        View
-      </Link>
+    <div className="flex flex-wrap items-center gap-2">
+      {onView && (
+        <button
+          type="button"
+          onClick={() => onView(entry)}
+          className={`${baseClass} ${compact ? 'bg-brand-50 text-brand-700' : 'text-brand-700'}`}
+        >
+          View
+        </button>
+      )}
       <Link
         to={`/owner/entries/${entry.id}/edit`}
         state={{ from: backPath }}
@@ -39,6 +44,16 @@ export default function EntryOwnerActions({
           className={`${baseClass} ${compact ? 'bg-emerald-50 text-emerald-700' : 'text-emerald-700'} disabled:opacity-50`}
         >
           {settling ? 'Settling...' : 'Settle'}
+        </button>
+      )}
+      {entry.settlement_status === 'settled' && onUndo && (
+        <button
+          type="button"
+          onClick={() => onUndo(entry)}
+          disabled={undoing}
+          className={`${baseClass} ${compact ? 'bg-slate-100 text-slate-700' : 'text-slate-700'} disabled:opacity-50`}
+        >
+          {undoing ? 'Undoing...' : 'Undo'}
         </button>
       )}
       {onDelete && (

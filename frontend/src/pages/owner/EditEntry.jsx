@@ -4,17 +4,20 @@ import AppLayout, { ownerBottomNav } from '../../components/Layout/AppLayout';
 import { ownerNavItems } from '../../config/ownerNav';
 import BackButton from '../../components/common/BackButton';
 import AlertMessage from '../../components/common/AlertMessage';
+import NamePickerInput from '../../components/common/NamePickerInput';
 import CostBreakdownFields from '../../components/entries/CostBreakdownFields';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { calculateProfit } from '../../utils/calculations';
 import { formatCurrency, formatProfitLabel, getTodayDateInputValue } from '../../utils/formatters';
 import { sumCostItems, validateEntryForm } from '../../utils/validation';
 import { getEntryDetails, updateEntry } from '../../services/entryService';
+import { useEntrySuggestions } from '../../utils/useEntrySuggestions';
 import { ApiError } from '../../services/api';
 
 export default function EditEntry() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { customers, sources } = useEntrySuggestions();
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     entry_date: '',
@@ -148,11 +151,16 @@ export default function EditEntry() {
               {errors.item_name && <p className="mt-1 text-sm text-red-600">{errors.item_name}</p>}
             </div>
 
-            <div>
-              <label htmlFor="customer_name" className="label-text">Customer Name</label>
-              <input id="customer_name" name="customer_name" type="text" className="input-field" value={form.customer_name} onChange={handleChange} />
-              {errors.customer_name && <p className="mt-1 text-sm text-red-600">{errors.customer_name}</p>}
-            </div>
+            <NamePickerInput
+              id="customer_name"
+              name="customer_name"
+              label="Customer Name"
+              value={form.customer_name}
+              onChange={handleChange}
+              suggestions={customers}
+              storageKey="customer"
+              error={errors.customer_name}
+            />
 
             <div>
               <label htmlFor="customer_amount" className="label-text">Customer Amount</label>
@@ -184,11 +192,16 @@ export default function EditEntry() {
               </div>
             )}
 
-            <div>
-              <label htmlFor="source_shop" className="label-text">Purchased From</label>
-              <input id="source_shop" name="source_shop" type="text" className="input-field" value={form.source_shop} onChange={handleChange} />
-              {errors.source_shop && <p className="mt-1 text-sm text-red-600">{errors.source_shop}</p>}
-            </div>
+            <NamePickerInput
+              id="source_shop"
+              name="source_shop"
+              label="Purchased From"
+              value={form.source_shop}
+              onChange={handleChange}
+              suggestions={sources}
+              storageKey="source"
+              error={errors.source_shop}
+            />
 
             <div>
               <label htmlFor="profit" className="label-text">Total Profit</label>

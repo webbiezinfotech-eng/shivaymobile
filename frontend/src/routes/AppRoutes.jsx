@@ -8,6 +8,7 @@ import SameerDashboard from '../pages/sameer/SameerDashboard';
 import AddEntry from '../pages/sameer/AddEntry';
 import MyEntries from '../pages/sameer/MyEntries';
 import SameerEntryDetails from '../pages/sameer/SameerEntryDetails';
+import SameerPending from '../pages/sameer/SameerPending';
 import OwnerDashboard from '../pages/owner/OwnerDashboard';
 import OwnerAddEntry from '../pages/owner/AddEntry';
 import AllEntries from '../pages/owner/AllEntries';
@@ -49,6 +50,16 @@ export default function AppRoutes() {
           <ProtectedRoute>
             <RoleRoute role="sameer">
               <MyEntries />
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sameer/pending"
+        element={
+          <ProtectedRoute>
+            <RoleRoute role="sameer">
+              <SameerPending />
             </RoleRoute>
           </ProtectedRoute>
         }
