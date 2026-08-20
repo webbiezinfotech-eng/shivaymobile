@@ -7,12 +7,10 @@ import { calculateProfit } from '../../utils/calculations';
 import { formatCurrency, formatProfitLabel, getTodayDateInputValue } from '../../utils/formatters';
 import { sumCostItems, validateEntryForm } from '../../utils/validation';
 import { createEntry } from '../../services/entryService';
-import { useEntrySuggestions } from '../../utils/useEntrySuggestions';
 import { ApiError } from '../../services/api';
 
 export default function AddEntryForm({ redirectTo = '/sameer/entries' }) {
   const navigate = useNavigate();
-  const { customers, sources } = useEntrySuggestions();
   const [form, setForm] = useState({
     entry_date: getTodayDateInputValue(),
     item_name: '',
@@ -139,7 +137,6 @@ export default function AddEntryForm({ redirectTo = '/sameer/entries' }) {
           label="Customer Name"
           value={form.customer_name}
           onChange={handleChange}
-          suggestions={customers}
           storageKey="customer"
           placeholder="Ankur Gao"
           error={errors.customer_name}
@@ -186,7 +183,6 @@ export default function AddEntryForm({ redirectTo = '/sameer/entries' }) {
           label="Purchased From"
           value={form.source_shop}
           onChange={handleChange}
-          suggestions={sources}
           storageKey="source"
           placeholder="V.M"
           error={errors.source_shop}

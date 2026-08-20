@@ -11,13 +11,11 @@ import { calculateProfit } from '../../utils/calculations';
 import { formatCurrency, formatProfitLabel, getTodayDateInputValue } from '../../utils/formatters';
 import { sumCostItems, validateEntryForm } from '../../utils/validation';
 import { getEntryDetails, updateEntry } from '../../services/entryService';
-import { useEntrySuggestions } from '../../utils/useEntrySuggestions';
 import { ApiError } from '../../services/api';
 
 export default function EditEntry() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { customers, sources } = useEntrySuggestions();
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     entry_date: '',
@@ -157,7 +155,6 @@ export default function EditEntry() {
               label="Customer Name"
               value={form.customer_name}
               onChange={handleChange}
-              suggestions={customers}
               storageKey="customer"
               error={errors.customer_name}
             />
@@ -198,7 +195,6 @@ export default function EditEntry() {
               label="Purchased From"
               value={form.source_shop}
               onChange={handleChange}
-              suggestions={sources}
               storageKey="source"
               error={errors.source_shop}
             />

@@ -2,17 +2,30 @@ import { useEffect, useMemo, useState } from 'react';
 
 const STORAGE_PREFIX = 'shivay_extra_names_';
 
+function normalizeNames(names) {
+  const seen = new Map();
+  for (const raw of names) {
+    const trimmed = String(raw).trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!seen.has(key)) {
+      seen.set(key, trimmed);
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
 function readStoredNames(storageKey) {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${storageKey}`);
-    return raw ? JSON.parse(raw) : [];
+    return raw ? normalizeNames(JSON.parse(raw)) : [];
   } catch {
     return [];
   }
 }
 
 function storeNames(storageKey, names) {
-  localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(names));
+  localStorage.setItem(`${STORAGE_PREFIX}${storageKey}`, JSON.stringify(normalizeNames(names)));
 }
 
 export default function NamePickerInput({
@@ -21,7 +34,6 @@ export default function NamePickerInput({
   label,
   value,
   onChange,
-  suggestions = [],
   placeholder = '',
   error = '',
   storageKey = name,
@@ -30,23 +42,21 @@ export default function NamePickerInput({
   const [open, setOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
-  const [extraOptions, setExtraOptions] = useState(() => readStoredNames(storageKey));
+  const [savedOptions, setSavedOptions] = useState(() => readStoredNames(storageKey));
 
-  const allSuggestions = useMemo(() => {
-    const merged = [...new Set([...extraOptions, ...suggestions])]
-      .map((item) => String(item).trim())
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-    return merged;
-  }, [extraOptions, suggestions]);
+  useEffect(() => {
+    const normalized = readStoredNames(storageKey);
+    setSavedOptions(normalized);
+    storeNames(storageKey, normalized);
+  }, [storageKey]);
 
   const filtered = useMemo(() => {
     const query = value.trim().toLowerCase();
     const pool = query
-      ? allSuggestions.filter((option) => option.toLowerCase().includes(query))
-      : allSuggestions;
+      ? savedOptions.filter((option) => option.toLowerCase().includes(query))
+      : savedOptions;
     return pool.slice(0, maxOptions);
-  }, [value, allSuggestions, maxOptions]);
+  }, [value, savedOptions, maxOptions]);
 
   const showList = open && filtered.length > 0;
 
@@ -84,8 +94,18 @@ export default function NamePickerInput({
     const trimmed = newName.trim();
     if (!trimmed) return;
 
-    const updated = [...new Set([...extraOptions, trimmed])];
-    setExtraOptions(updated);
+    const existing = savedOptions.find(
+      (option) => option.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (existing) {
+      onChange({ target: { name, value: existing } });
+      closeAddModal();
+      return;
+    }
+
+    const updated = normalizeNames([...savedOptions, trimmed]);
+    setSavedOptions(updated);
     storeNames(storageKey, updated);
     onChange({ target: { name, value: trimmed } });
     closeAddModal();
