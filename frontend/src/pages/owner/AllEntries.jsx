@@ -11,6 +11,8 @@ import { getEntries, settleEntry, undoSettleEntry, deleteEntry } from '../../ser
 import { useDebouncedValue } from '../../utils/useDebouncedValue';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListPager } from '../../components/common/ListControls';
 
 import { getDefaultAllEntriesFilters } from '../../utils/formatters';
 
@@ -34,6 +36,17 @@ export default function AllEntries() {
   debouncedFiltersRef.current = debouncedFilters;
   const filtersKey = useMemo(() => JSON.stringify(debouncedFilters), [debouncedFilters]);
 
+  // 10-per-page pager — search/filter change hote hi page 1 par reset
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(entries, { resetKey: entries });
+
   const loadEntries = useCallback(async ({ silent = false } = {}) => {
     const activeFilters = debouncedFiltersRef.current;
     if (!silent) {
@@ -47,7 +60,7 @@ export default function AllEntries() {
 
     try {
       const data = await getEntries({ ...activeFilters, limit: 100 });
-      setEntries(data.entries);
+      setEntries(data.entries || []);
     } catch (err) {
       if (!silent) {
         setEntries([]);
@@ -178,8 +191,17 @@ export default function AllEntries() {
       )}
 
       {!loading && (
-        <EntryTable
-          entries={entries}
+        <>
+          <ListPager
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            goToPage={goToPage}
+          />
+          <EntryTable
+            entries={pageItems}
           showOwnerColumns
           showOwnerActions
           onSettleClick={setConfirmEntry}
@@ -188,7 +210,8 @@ export default function AllEntries() {
           settlingId={settling ? confirmEntry?.id : null}
           undoingId={undoing ? undoEntry?.id : null}
           deletingId={deleting ? deleteEntryTarget?.id : null}
-        />
+          />
+        </>
       )}
 
       <SettlementConfirmModal

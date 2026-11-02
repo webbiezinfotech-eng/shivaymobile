@@ -38,9 +38,7 @@ try {
         errorResponse('Entry not found.', [], 404);
     }
 
-    if ($user['role'] === 'sameer' && (int) $entry['created_by'] !== $user['id']) {
-        errorResponse('You do not have permission to view this entry.', [], 403);
-    }
+    // Staff aur owner dono shared ledger dekhte hain — kisi bhi entry ka detail khul sakta hai.
 
     successResponse('Entry retrieved.', formatEntryResponse($entry));
 } catch (Throwable $e) {

@@ -136,7 +136,9 @@ export default function EditEntry() {
         <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="mb-5 text-xl font-bold text-slate-900">Edit Entry</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
+            <input type="text" name="shivay_block_autofill" className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+            <input type="password" name="shivay_block_autofill_pw" className="hidden" tabIndex={-1} autoComplete="new-password" aria-hidden="true" />
             <div>
               <label htmlFor="entry_date" className="label-text">Date</label>
               <input id="entry_date" name="entry_date" type="date" className="input-field" value={form.entry_date} max={getTodayDateInputValue()} onChange={handleChange} />

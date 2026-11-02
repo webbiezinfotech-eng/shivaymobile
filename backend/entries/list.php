@@ -17,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 $user = requireAuth();
 
+// Staff aur owner dono ko saari entries dikhti hain (shared ledger) —
+// owner dwara add ki gayi entry bhi staff list me visible rahe.
+
 $dateFrom = trim((string) ($_GET['from_date'] ?? $_GET['date_from'] ?? ''));
 $dateTo = trim((string) ($_GET['to_date'] ?? $_GET['date_to'] ?? ''));
 $search = trim((string) ($_GET['search'] ?? ''));
@@ -27,11 +30,6 @@ $offset = ($page - 1) * $limit;
 
 $conditions = [];
 $params = [];
-
-if ($user['role'] === 'sameer') {
-    $conditions[] = 'e.created_by = :created_by';
-    $params['created_by'] = $user['id'];
-}
 
 if ($dateFrom !== '') {
     $conditions[] = 'e.entry_date >= :date_from';

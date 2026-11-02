@@ -8,6 +8,7 @@ import UndoSettleConfirmModal from '../../components/entries/UndoSettleConfirmMo
 import DeleteConfirmModal from '../../components/entries/DeleteConfirmModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import AlertMessage from '../../components/common/AlertMessage';
+import SavedNameSearchInput from '../../components/common/SavedNameSearchInput';
 import { fetchOwnerReport } from '../../utils/reportBuilder';
 import { settleEntry, undoSettleEntry, deleteEntry } from '../../services/entryService';
 import { downloadReportPdfFile, buildReportItemSummary, getSourcePurchaseTotal, isSourceReport, getSearchPerspectiveLabel } from '../../utils/reportPdf';
@@ -15,6 +16,8 @@ import { formatCurrency, getDefaultReportFilters } from '../../utils/formatters'
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { useDebouncedValue } from '../../utils/useDebouncedValue';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListPager } from '../../components/common/ListControls';
 
 
 
@@ -75,6 +78,17 @@ export default function MonthlyReport() {
   reportParamsRef.current = reportParams;
 
   const reportParamsKey = useMemo(() => JSON.stringify(reportParams), [reportParams]);
+
+  // Entries table: 10 per page, report filters change hote hi page 1
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(report?.entries || [], { externalSearch: filters.search, resetKey: reportParamsKey });
 
   const lastFetchKeyRef = useRef('');
   const fetchInFlightRef = useRef(false);
@@ -232,16 +246,13 @@ export default function MonthlyReport() {
             </select>
           </div>
           <div className="sm:col-span-2 lg:col-span-2">
-            <label htmlFor="search" className="label-text">Search by name</label>
-            <input
+            <SavedNameSearchInput
               id="search"
               name="search"
-              type="search"
-              className="input-field"
-              placeholder="Customer, source shop ya item name — filter select ki zaroorat nahi"
+              label="Search by name"
               value={filters.search}
               onChange={handleFilterChange}
-              autoComplete="off"
+              placeholder="Saved customer / source name select karein ya type karein"
             />
           </div>
         </div>
@@ -356,8 +367,16 @@ export default function MonthlyReport() {
           {report.entries?.length > 0 ? (
             <section>
               <h3 className="mb-3 text-lg font-semibold text-slate-900">Entries</h3>
+              <ListPager
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageStart={pageStart}
+                pageEnd={pageEnd}
+                goToPage={goToPage}
+              />
               <EntryTable
-                entries={report.entries}
+                entries={pageItems}
                 showOwnerColumns
                 showOwnerActions
                 compactLayout={false}

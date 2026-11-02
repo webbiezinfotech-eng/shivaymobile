@@ -1,4 +1,3 @@
-import { getEntries } from '../services/entryService';
 import { getMonthlyReport } from '../services/dashboardService';
 
 function padMonth(month) {
@@ -34,24 +33,6 @@ function buildSearchLabel(search, searchType) {
   if (searchType === 'source') return ` · SOURCE: ${upper}`;
   if (searchType === 'item') return ` · ITEM: ${upper}`;
   return ` · ${upper}`;
-}
-
-export function filterEntriesBySearch(entries, search, searchType = 'all') {
-  if (!search) return entries;
-
-  const query = search.trim().toLowerCase();
-  if (!query) return entries;
-
-  return entries.filter((entry) => {
-    const customer = String(entry.customer_name || '').toLowerCase();
-    const source = String(entry.source_shop || '').toLowerCase();
-    const item = String(entry.item_name || '').toLowerCase();
-
-    if (searchType === 'customer') return customer.includes(query);
-    if (searchType === 'source') return source.includes(query);
-    if (searchType === 'item') return item.includes(query);
-    return customer.includes(query) || source.includes(query) || item.includes(query);
-  });
 }
 
 /** Auto-detect whether search is for a source shop, customer, or item name. */
@@ -93,55 +74,31 @@ export function detectSearchPerspective(entries, search) {
   return 'all';
 }
 
-function sumBy(entries, pickAmount) {
-  return entries.reduce((total, entry) => total + Number(pickAmount(entry) || 0), 0);
-}
-
-export function buildReportFromEntries(entries, params, range) {
-  const searchType = params.search
-    ? detectSearchPerspective(entries, params.search)
-    : 'all';
-  const periodLabel = buildPeriodLabel(params, range) + buildSearchLabel(params.search, searchType);
-
-  const settledEntries = entries.filter((entry) => entry.settlement_status === 'settled');
-  const pendingEntries = entries.filter((entry) => entry.settlement_status === 'pending');
-
-  return {
-    year: params.year,
-    month: params.month,
-    from_date: range.from_date,
-    to_date: range.to_date,
-    status: params.status || 'all',
-    search: params.search || '',
-    search_type: searchType,
-    month_label: periodLabel,
-    total_entries: entries.length,
-    total_customer_amount: sumBy(entries, (entry) => entry.customer_amount),
-    total_purchase_cost: sumBy(entries, (entry) => entry.purchase_cost),
-    total_profit: sumBy(entries, (entry) => entry.profit),
-    settled_amount: sumBy(settledEntries, (entry) => entry.customer_amount),
-    pending_amount: sumBy(pendingEntries, (entry) => entry.customer_amount),
-    entries,
-  };
-}
-
+/**
+ * Report hamesha server-side monthly.php se aata hai — search bhi backend
+ * khud filter karta hai (customer/source/item/all), isliye date range + search
+ * dono lagu hone par bhi POORI matching list milti hai (koi 100-entry
+ * client-side cap nahi, koi khud se summary nahi banti).
+ */
 export async function fetchOwnerReport(params) {
   const range = getMonthDateRange(params);
   const hasSearch = Boolean(params.search && String(params.search).trim());
 
-  if (!hasSearch) {
-    return getMonthlyReport(params);
-  }
-
-  const listParams = {
+  const reportParams = {
+    ...params,
     from_date: range.from_date,
     to_date: range.to_date,
-    status: params.status || undefined,
-    limit: 100,
   };
 
-  const { entries: rawEntries } = await getEntries(listParams);
-  const filteredEntries = filterEntriesBySearch(rawEntries, String(params.search).trim(), 'all');
+  // Server report ke label ke liye search_type detect karta hai —
+  // client-side detection server ke response ko override nahi karega.
+  const data = await getMonthlyReport(reportParams);
 
-  return buildReportFromEntries(filteredEntries, { ...params, ...range }, range);
+  if (hasSearch && (!data.search_type || data.search_type === 'all')) {
+    // Fallback: agar server ne type nahi bataya to client-side entries se detect karein
+    data.search_type = detectSearchPerspective(data.entries || [], String(params.search).trim());
+    data.month_label = `${buildPeriodLabel(params, range)}${buildSearchLabel(String(params.search).trim(), data.search_type)}`;
+  }
+
+  return data;
 }

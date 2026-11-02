@@ -6,6 +6,8 @@ import AlertMessage from '../../components/common/AlertMessage';
 import { getEntries } from '../../services/entryService';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListPager } from '../../components/common/ListControls';
 
 const navItems = [
   { to: '/sameer', label: 'Dashboard' },
@@ -40,11 +42,34 @@ export default function MyEntries() {
 
   useRefreshOnResume(loadEntries);
 
+  // 10-per-page pager — data refresh hone par page 1 se shuru
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(entries, { resetKey: entries });
+
   return (
     <AppLayout title="My Entries" navItems={navItems} bottomNavItems={sameerBottomNav}>
       {loading && <LoadingSpinner />}
       {error && <AlertMessage message={error} />}
-      {!loading && !error && <EntryTable entries={entries} detailBasePath="/sameer/entries" />}
+      {!loading && !error && (
+        <>
+          <ListPager
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            goToPage={goToPage}
+          />
+          <EntryTable entries={pageItems} detailBasePath="/sameer/entries" />
+        </>
+      )}
     </AppLayout>
   );
 }

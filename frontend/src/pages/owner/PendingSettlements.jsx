@@ -10,6 +10,8 @@ import AlertMessage from '../../components/common/AlertMessage';
 import { getEntries, settleEntry, undoSettleEntry, deleteEntry } from '../../services/entryService';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListPager } from '../../components/common/ListControls';
 
 
 export default function PendingSettlements() {
@@ -23,6 +25,17 @@ export default function PendingSettlements() {
   const [settling, setSettling] = useState(false);
   const [undoing, setUndoing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // 10-per-page pager — data refresh hone par page 1 se shuru
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(entries, { resetKey: entries });
 
   const loadPending = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -107,8 +120,17 @@ export default function PendingSettlements() {
       {loading && <LoadingSpinner />}
 
       {!loading && (
-        <EntryTable
-          entries={entries}
+        <>
+          <ListPager
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            goToPage={goToPage}
+          />
+          <EntryTable
+            entries={pageItems}
           showOwnerColumns
           showOwnerActions
           onSettleClick={setConfirmEntry}
@@ -117,7 +139,8 @@ export default function PendingSettlements() {
           settlingId={settling ? confirmEntry?.id : null}
           undoingId={undoing ? undoEntry?.id : null}
           deletingId={deleting ? deleteEntryTarget?.id : null}
-        />
+          />
+        </>
       )}
 
       <SettlementConfirmModal

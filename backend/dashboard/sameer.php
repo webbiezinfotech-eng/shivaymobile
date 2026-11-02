@@ -45,15 +45,16 @@ try {
     $pendingStmt->execute(['user_id' => $user['id'], 'status' => 'pending']);
     $pendingCount = (int) $pendingStmt->fetch()['count'];
 
+    // Staff aur owner shared ledger dekhte hain — dashboard par bhi saari aaj ki entries
     $recentStmt = $pdo->prepare(
         'SELECT e.*, u.name AS created_by_name
          FROM entries e
          JOIN users u ON u.id = e.created_by
-         WHERE e.created_by = :user_id AND e.entry_date = :today
+         WHERE e.entry_date = :today
          ORDER BY e.id DESC
          LIMIT 50'
     );
-    $recentStmt->execute(['user_id' => $user['id'], 'today' => $today]);
+    $recentStmt->execute(['today' => $today]);
     $recent = array_map(static function (array $row): array {
         return [
             'id' => (int) $row['id'],

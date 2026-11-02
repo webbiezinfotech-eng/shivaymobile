@@ -8,6 +8,8 @@ import AlertMessage from '../../components/common/AlertMessage';
 import { getSameerDashboard } from '../../services/dashboardService';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListSearchBar, ListPager } from '../../components/common/ListControls';
 
 const navItems = [
   { to: '/sameer', label: 'Dashboard', end: true },
@@ -43,6 +45,19 @@ export default function SameerDashboard() {
 
   useRefreshOnResume(loadDashboard);
 
+  // 10-per-page pager + search — search change hote hi page 1 par reset
+  const {
+    search,
+    onSearchChange,
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(data?.recent_entries || []);
+
   return (
     <AppLayout title="Dashboard" navItems={navItems} bottomNavItems={sameerBottomNav}>
       {loading && <LoadingSpinner />}
@@ -67,7 +82,22 @@ export default function SameerDashboard() {
           <section>
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Today&apos;s Entries</h2>
             <p className="mb-3 text-sm text-slate-500">Sirf aaj ki entries</p>
-            <EntryTable entries={data.recent_entries} detailBasePath="/sameer/entries" />
+            <div className="mb-3">
+              <ListSearchBar
+                value={search}
+                onChange={onSearchChange}
+                placeholder="Search today..."
+              />
+            </div>
+            <ListPager
+              page={pager.page}
+              totalPages={pager.totalPages}
+              totalItems={pager.totalItems}
+              pageStart={pager.pageStart}
+              pageEnd={pager.pageEnd}
+              goToPage={pager.goToPage}
+            />
+            <EntryTable entries={pager.pageItems} detailBasePath="/sameer/entries" />
           </section>
         </div>
       )}

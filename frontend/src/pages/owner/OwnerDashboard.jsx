@@ -11,9 +11,10 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import AlertMessage from '../../components/common/AlertMessage';
 import { getOwnerDashboard } from '../../services/dashboardService';
 import { settleEntry, undoSettleEntry, deleteEntry } from '../../services/entryService';
-import { filterEntries } from '../../utils/searchEntries';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListSearchBar, ListPager } from '../../components/common/ListControls';
 
 
 export default function OwnerDashboard() {
@@ -50,10 +51,16 @@ export default function OwnerDashboard() {
 
   useRefreshOnResume(loadDashboard);
 
-  const filteredEntries = useMemo(
-    () => filterEntries(data?.recent_entries || [], search),
-    [data?.recent_entries, search]
-  );
+  // 10-per-page pager — search change hote hi page 1 par reset
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(data?.recent_entries || [], { externalSearch: search, onExternalSearchChange: setSearch });
 
   const handleConfirmSettle = async () => {
     if (!confirmEntry) return;
@@ -144,16 +151,22 @@ export default function OwnerDashboard() {
                 <h2 className="text-lg font-semibold text-slate-900">Today&apos;s Entries</h2>
                 <p className="text-sm text-slate-500">Sirf aaj ki entries — purani dekhne ke liye Reports use karein</p>
               </div>
-              <input
-                type="search"
-                className="input-field sm:max-w-xs"
-                placeholder="Search today..."
+              <ListSearchBar
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={setSearch}
+                placeholder="Search today..."
               />
             </div>
+            <ListPager
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageStart={pageStart}
+              pageEnd={pageEnd}
+              goToPage={goToPage}
+            />
             <EntryTable
-              entries={filteredEntries}
+              entries={pageItems}
               showOwnerColumns
               showOwnerActions
               onSettleClick={setConfirmEntry}

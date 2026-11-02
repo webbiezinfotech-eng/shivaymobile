@@ -7,6 +7,8 @@ import AlertMessage from '../../components/common/AlertMessage';
 import { getEntries } from '../../services/entryService';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
+import usePagedList from '../../utils/usePagedList';
+import { ListPager } from '../../components/common/ListControls';
 
 const navItems = [
   { to: '/sameer', label: 'Dashboard', end: true },
@@ -42,6 +44,17 @@ export default function SameerPending() {
 
   useRefreshOnResume(loadPending);
 
+  // 10-per-page pager — data refresh hone par page 1 se shuru
+  const {
+    page,
+    totalPages,
+    totalItems,
+    pageStart,
+    pageEnd,
+    pageItems,
+    goToPage,
+  } = usePagedList(entries, { resetKey: entries });
+
   const pendingTotal = entries.reduce((sum, entry) => sum + Number(entry.customer_amount || 0), 0);
 
   return (
@@ -56,7 +69,17 @@ export default function SameerPending() {
             <StatCard label="Pending Amount" value={pendingTotal} isCurrency />
           </div>
 
-          <EntryTable entries={entries} detailBasePath="/sameer/entries" />
+          <ListPager
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            goToPage={goToPage}
+            label="pending entries"
+          />
+
+          <EntryTable entries={pageItems} detailBasePath="/sameer/entries" />
         </div>
       )}
     </AppLayout>
