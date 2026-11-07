@@ -90,14 +90,14 @@ export default function SameerDashboard() {
               />
             </div>
             <ListPager
-              page={pager.page}
-              totalPages={pager.totalPages}
-              totalItems={pager.totalItems}
-              pageStart={pager.pageStart}
-              pageEnd={pager.pageEnd}
-              goToPage={pager.goToPage}
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageStart={pageStart}
+              pageEnd={pageEnd}
+              goToPage={goToPage}
             />
-            <EntryTable entries={pager.pageItems} detailBasePath="/sameer/entries" />
+            <EntryTable entries={pageItems} detailBasePath="/sameer/entries" />
           </section>
         </div>
       )}

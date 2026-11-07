@@ -66,13 +66,15 @@ export function getMonthStartDateInputValue(date = new Date()) {
 }
 
 export function getDefaultReportFilters() {
-  const today = getTodayDateInputValue();
   const now = new Date();
+  // Report default = ALL TIME. Pehle default aaj ki date tha, isliye purani
+  // pending entries naam se search karne par report me kuch nahi aata tha.
   return {
-    from_date: today,
-    to_date: today,
+    from_date: '',
+    to_date: '',
     status: '',
     search: '',
+    all_time: true,
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   };

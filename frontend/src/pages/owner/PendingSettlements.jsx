@@ -11,7 +11,7 @@ import { getEntries, settleEntry, undoSettleEntry, deleteEntry } from '../../ser
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { ApiError } from '../../services/api';
 import usePagedList from '../../utils/usePagedList';
-import { ListPager } from '../../components/common/ListControls';
+import { ListPager, ListSearchBar } from '../../components/common/ListControls';
 
 
 export default function PendingSettlements() {
@@ -27,22 +27,25 @@ export default function PendingSettlements() {
   const [deleting, setDeleting] = useState(false);
 
   // 10-per-page pager — data refresh hone par page 1 se shuru
-  const {
-    page,
-    totalPages,
-    totalItems,
-    pageStart,
-    pageEnd,
-    pageItems,
-    goToPage,
-  } = usePagedList(entries, { resetKey: entries });
+// Search + 10 entries per page
+const {
+  search,
+  onSearchChange,
+  page,
+  totalPages,
+  totalItems,
+  pageStart,
+  pageEnd,
+  pageItems,
+  goToPage,
+} = usePagedList(entries, { resetKey: entries });
 
   const loadPending = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     if (!silent) setError('');
 
     try {
-      const data = await getEntries({ status: 'pending', limit: 100 });
+      const data = await getEntries({ status: 'pending', limit: 500 });
       setEntries(data.entries);
     } catch (err) {
       if (!silent) {
@@ -119,8 +122,16 @@ export default function PendingSettlements() {
       {error && <div className="mb-4"><AlertMessage message={error} /></div>}
       {loading && <LoadingSpinner />}
 
-      {!loading && (
-        <>
+ {!loading && (
+  <>
+    {/* Pending Entries Search */}
+    <div className="mb-4">
+      <ListSearchBar
+        value={search}
+        onChange={onSearchChange}
+        placeholder="Search by customer name, item, amount..."
+      />
+    </div>
           <ListPager
             page={page}
             totalPages={totalPages}

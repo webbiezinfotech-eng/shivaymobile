@@ -5,17 +5,38 @@ function padMonth(month) {
 }
 
 function getMonthDateRange(params) {
-  if (params.from_date && params.to_date) {
-    return { from_date: params.from_date, to_date: params.to_date };
+  if (params.all_time) {
+    return { from_date: '', to_date: '' };
   }
 
-  const from_date = `${params.year}-${padMonth(params.month)}-01`;
-  const to_date = new Date(params.year, params.month, 0).toISOString().slice(0, 10);
+  // Custom date range
+  if (params.from_date || params.to_date) {
+    const selectedDate = params.from_date || params.to_date;
+
+    return {
+      from_date: params.from_date || selectedDate,
+      to_date: params.to_date || selectedDate,
+    };
+  }
+
+  // Monthly date range
+  const year = Number(params.year);
+  const month = Number(params.month);
+
+  const from_date = `${year}-${padMonth(month)}-01`;
+
+  // Local date calculation — timezone issue avoid karega
+  const lastDay = new Date(year, month, 0).getDate();
+  const to_date = `${year}-${padMonth(month)}-${String(lastDay).padStart(2, '0')}`;
+
   return { from_date, to_date };
 }
-
 function buildPeriodLabel(params, { from_date, to_date }) {
-  if (params.from_date && params.to_date) {
+  if (params.all_time) {
+    return 'ALL TIME';
+  }
+
+  if (params.from_date || params.to_date) {
     const start = new Date(from_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     const end = new Date(to_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     return `${start} - ${end}`.toUpperCase();
@@ -89,6 +110,14 @@ export async function fetchOwnerReport(params) {
     from_date: range.from_date,
     to_date: range.to_date,
   };
+
+  // All Time report me date range query me nahi jani chahiye,
+  // warna backend purani (pending) entries filter kar deta hai.
+  if (params.all_time) {
+    reportParams.all_time = 1;
+    delete reportParams.from_date;
+    delete reportParams.to_date;
+  }
 
   // Server report ke label ke liye search_type detect karta hai —
   // client-side detection server ke response ko override nahi karega.

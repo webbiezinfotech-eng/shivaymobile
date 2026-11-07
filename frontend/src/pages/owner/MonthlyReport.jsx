@@ -12,7 +12,7 @@ import SavedNameSearchInput from '../../components/common/SavedNameSearchInput';
 import { fetchOwnerReport } from '../../utils/reportBuilder';
 import { settleEntry, undoSettleEntry, deleteEntry } from '../../services/entryService';
 import { downloadReportPdfFile, buildReportItemSummary, getSourcePurchaseTotal, isSourceReport, getSearchPerspectiveLabel } from '../../utils/reportPdf';
-import { formatCurrency, getDefaultReportFilters } from '../../utils/formatters';
+import { formatCurrency, getDefaultReportFilters, getTodayDateInputValue } from '../../utils/formatters';
 import { useRefreshOnResume } from '../../utils/useAutoRefresh';
 import { useDebouncedValue } from '../../utils/useDebouncedValue';
 import { ApiError } from '../../services/api';
@@ -38,7 +38,9 @@ export default function MonthlyReport() {
   const [downloading, setDownloading] = useState(false);
   const hasLoadedOnce = useRef(false);
 
-  const useDateRange = filters.from_date !== '' && filters.to_date !== '';
+ const useAllTime = Boolean(filters.all_time);
+const useDateRange =
+  !useAllTime && (filters.from_date !== '' || filters.to_date !== '');
   const isSearching = filters.search !== debouncedSearch;
 
   const activeSearchType = report?.search_type || 'all';
@@ -55,24 +57,29 @@ export default function MonthlyReport() {
   );
 
   const reportParams = useMemo(() => {
-    const base = useDateRange
+    const base = useAllTime
       ? {
-          from_date: filters.from_date,
-          to_date: filters.to_date,
+          all_time: 1,
           status: filters.status,
         }
-      : {
-          year: filters.year,
-          month: filters.month,
-          status: filters.status,
-        };
+ : useDateRange
+  ? {
+      from_date: filters.from_date || filters.to_date,
+      to_date: filters.to_date || filters.from_date,
+      status: filters.status,
+    }
+        : {
+            year: filters.year,
+            month: filters.month,
+            status: filters.status,
+          };
 
     if (debouncedSearch) {
       base.search = debouncedSearch.trim();
     }
 
     return base;
-  }, [useDateRange, filters.from_date, filters.to_date, filters.status, filters.year, filters.month, debouncedSearch]);
+  }, [useAllTime, useDateRange, filters.from_date, filters.to_date, filters.status, filters.year, filters.month, debouncedSearch]);
 
   const reportParamsRef = useRef(reportParams);
   reportParamsRef.current = reportParams;
@@ -89,46 +96,60 @@ export default function MonthlyReport() {
     pageItems,
     goToPage,
   } = usePagedList(report?.entries || [], { externalSearch: filters.search, resetKey: reportParamsKey });
+const lastFetchKeyRef = useRef('');
+const requestIdRef = useRef(0);
 
-  const lastFetchKeyRef = useRef('');
-  const fetchInFlightRef = useRef(false);
+ const loadReport = useCallback(async ({ silent = false } = {}) => {
+  const params = reportParamsRef.current;
+  const fetchKey = JSON.stringify(params);
 
-  const loadReport = useCallback(async ({ silent = false } = {}) => {
-    const params = reportParamsRef.current;
-    const fetchKey = JSON.stringify(params);
+  // Same report already loaded: silent refresh ki zarurat nahi
+  if (silent && fetchKey === lastFetchKeyRef.current) return;
 
-    if (fetchInFlightRef.current) return;
-    if (silent && fetchKey === lastFetchKeyRef.current) return;
+  // Har new request ko unique ID do
+  const requestId = ++requestIdRef.current;
 
-    fetchInFlightRef.current = true;
+  if (!silent) {
+    if (hasLoadedOnce.current) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    setError('');
+  }
+
+  try {
+    const data = await fetchOwnerReport(params);
+
+    // Sirf latest request ka result display hoga
+    if (requestId !== requestIdRef.current) return;
+
+    setReport(data);
+    lastFetchKeyRef.current = fetchKey;
+
+  } catch (err) {
+    // Purani request ka error ignore karo
+    if (requestId !== requestIdRef.current) return;
 
     if (!silent) {
-      if (hasLoadedOnce.current) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError('');
+      setReport(null);
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to connect to server.'
+      );
     }
 
-    try {
-      const data = await fetchOwnerReport(params);
-      setReport(data);
-      lastFetchKeyRef.current = fetchKey;
-    } catch (err) {
-      if (!silent) {
-        setReport(null);
-        setError(err instanceof ApiError ? err.message : 'Unable to connect to server.');
-      }
-    } finally {
-      fetchInFlightRef.current = false;
-      if (!silent) {
-        setLoading(false);
-        setRefreshing(false);
-        hasLoadedOnce.current = true;
-      }
+  } finally {
+    // Sirf latest request loading state update karegi
+    if (requestId === requestIdRef.current) {
+      setLoading(false);
+      setRefreshing(false);
+      hasLoadedOnce.current = true;
     }
-  }, []);
+  }
+}, []);
 
   useEffect(() => {
     loadReport();
@@ -224,6 +245,7 @@ export default function MonthlyReport() {
               className="input-field"
               value={filters.from_date}
               onChange={handleFilterChange}
+              disabled={useAllTime}
             />
           </div>
           <div>
@@ -235,7 +257,32 @@ export default function MonthlyReport() {
               className="input-field"
               value={filters.to_date}
               onChange={handleFilterChange}
+              disabled={useAllTime}
             />
+          </div>
+          <div className="flex items-end">
+            <label
+              htmlFor="all_time"
+              className="flex min-h-[46px] w-full items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+            >
+              <input
+                id="all_time"
+                name="all_time"
+                type="checkbox"
+                className="h-4 w-4"
+                checked={useAllTime}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setFilters((prev) => ({
+                    ...prev,
+                    all_time: checked,
+                    from_date: checked ? '' : prev.from_date || getTodayDateInputValue(),
+                    to_date: checked ? '' : prev.to_date || getTodayDateInputValue(),
+                  }));
+                }}
+              />
+              All Time
+            </label>
           </div>
           <div>
             <label htmlFor="status" className="label-text">Status</label>
@@ -257,7 +304,7 @@ export default function MonthlyReport() {
           </div>
         </div>
 
-        {!useDateRange && (
+        {!useDateRange && !useAllTime && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="month" className="label-text">Month (if no date range)</label>

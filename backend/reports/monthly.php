@@ -26,10 +26,19 @@ if (!in_array($searchType, ['all', 'customer', 'source', 'item'], true)) {
     $searchType = 'all';
 }
 
+$allTime = filter_var((string) ($_GET['all_time'] ?? '0'), FILTER_VALIDATE_BOOLEAN);
+
 $year = (int) ($_GET['year'] ?? (int) date('Y'));
 $month = (int) ($_GET['month'] ?? (int) date('n'));
 
-if ($fromDate !== '' && $toDate !== '') {
+$hasRange = $fromDate !== '' && $toDate !== '';
+
+if ($allTime) {
+    // "All Time" — poore history par search (purani pending entries bhi mile).
+    $rangeStart = '';
+    $rangeEnd = '';
+    $periodLabel = 'ALL TIME';
+} elseif ($hasRange) {
     $rangeStart = $fromDate;
     $rangeEnd = $toDate;
     $periodLabel = strtoupper(date('d M Y', strtotime($fromDate)) . ' - ' . date('d M Y', strtotime($toDate)));
@@ -42,11 +51,15 @@ if ($fromDate !== '' && $toDate !== '') {
     $periodLabel = strtoupper(date('F Y', strtotime($rangeStart)));
 }
 
-$conditions = ['e.entry_date >= :range_start', 'e.entry_date <= :range_end'];
-$baseParams = [
-    'range_start' => $rangeStart,
-    'range_end' => $rangeEnd,
-];
+$conditions = [];
+$baseParams = [];
+
+if (!$allTime) {
+    $conditions[] = 'e.entry_date >= :range_start';
+    $conditions[] = 'e.entry_date <= :range_end';
+    $baseParams['range_start'] = $rangeStart;
+    $baseParams['range_end'] = $rangeEnd;
+}
 
 if ($status !== '' && in_array($status, ['pending', 'settled'], true)) {
     $conditions[] = 'e.settlement_status = :status';
@@ -56,9 +69,14 @@ if ($status !== '' && in_array($status, ['pending', 'settled'], true)) {
 if ($search !== '') {
     $searchTerm = '%' . $search . '%';
 
+    // Staff/user ke naam se bhi match — pending list me jo naam dikh raha hai
+    // wahi naam report search me bhi hit hona chahiye.
+    $userMatch = 'e.created_by IN (SELECT u2.id FROM users u2 WHERE LOWER(TRIM(u2.name)) LIKE LOWER(:search_user))';
+
     if ($searchType === 'customer') {
-        $conditions[] = 'LOWER(TRIM(e.customer_name)) LIKE LOWER(:search_customer)';
+        $conditions[] = '(LOWER(TRIM(e.customer_name)) LIKE LOWER(:search_customer) OR ' . $userMatch . ')';
         $baseParams['search_customer'] = $searchTerm;
+        $baseParams['search_user'] = $searchTerm;
         $periodLabel .= ' · CUSTOMER: ' . strtoupper($search);
     } elseif ($searchType === 'source') {
         $conditions[] = 'LOWER(TRIM(e.source_shop)) LIKE LOWER(:search_source)';
@@ -73,15 +91,17 @@ if ($search !== '') {
             LOWER(TRIM(e.customer_name)) LIKE LOWER(:search_customer)
             OR LOWER(TRIM(e.source_shop)) LIKE LOWER(:search_source)
             OR LOWER(TRIM(e.item_name)) LIKE LOWER(:search_item)
+            OR ' . $userMatch . '
         )';
         $baseParams['search_customer'] = $searchTerm;
         $baseParams['search_source'] = $searchTerm;
         $baseParams['search_item'] = $searchTerm;
+        $baseParams['search_user'] = $searchTerm;
         $periodLabel .= ' · ' . strtoupper($search);
     }
 }
 
-$where = 'WHERE ' . implode(' AND ', $conditions);
+$where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 $summaryParams = array_merge($baseParams, [
     'settled' => 'settled',
     'pending' => 'pending',
@@ -120,6 +140,7 @@ try {
         'month' => $month,
         'from_date' => $rangeStart,
         'to_date' => $rangeEnd,
+        'all_time' => $allTime,
         'status' => $status !== '' ? $status : 'all',
         'search' => $search,
         'search_type' => $searchType !== '' ? $searchType : 'all',

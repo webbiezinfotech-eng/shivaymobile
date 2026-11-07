@@ -59,7 +59,7 @@ export default function AllEntries() {
     if (!silent) setError('');
 
     try {
-      const data = await getEntries({ ...activeFilters, limit: 100 });
+      const data = await getEntries({ ...activeFilters, limit: 500 });
       setEntries(data.entries || []);
     } catch (err) {
       if (!silent) {

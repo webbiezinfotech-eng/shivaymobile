@@ -25,7 +25,7 @@ $dateTo = trim((string) ($_GET['to_date'] ?? $_GET['date_to'] ?? ''));
 $search = trim((string) ($_GET['search'] ?? ''));
 $status = trim((string) ($_GET['status'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
-$limit = min(100, max(1, (int) ($_GET['limit'] ?? 50)));
+$limit = min(500, max(1, (int) ($_GET['limit'] ?? 50)));
 $offset = ($page - 1) * $limit;
 
 $conditions = [];

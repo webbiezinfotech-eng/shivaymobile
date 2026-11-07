@@ -27,7 +27,7 @@ export default function SameerPending() {
     if (!silent) setError('');
 
     try {
-      const data = await getEntries({ status: 'pending', limit: 100 });
+      const data = await getEntries({ status: 'pending', limit: 500 });
       setEntries(data.entries);
     } catch (err) {
       if (!silent) {

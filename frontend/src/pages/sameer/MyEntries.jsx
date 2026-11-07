@@ -25,7 +25,7 @@ export default function MyEntries() {
     if (!silent) setError('');
 
     try {
-      const data = await getEntries({ limit: 100 });
+      const data = await getEntries({ limit: 500 });
       setEntries(data.entries);
     } catch (err) {
       if (!silent) {

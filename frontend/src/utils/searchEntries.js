@@ -7,6 +7,8 @@ export function filterEntries(entries = [], query = '') {
       entry.item_name,
       entry.customer_name,
       entry.source_shop,
+      entry.created_by_name,
+      entry.settled_by_name,
       entry.settlement_status,
       entry.entry_date,
       String(entry.customer_amount),
